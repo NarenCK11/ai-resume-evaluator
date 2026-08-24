@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --color-brand-50: #f2f2ff;
+  --color-brand-100: #e6e5fe;
+  --color-brand-200: #d0cdfd;
+  --color-brand-300: #b0a9fb;
+  --color-brand-400: #8b7cf6;
+  --color-brand-500: #6d4de8;
+  --color-brand-600: #5a34d4;
+  --color-brand-700: #4a29ac;
+  --color-brand-800: #3d248a;
+  --color-brand-900: #33206f;
+
+  --color-ink-50: #f7f8fa;
+  --color-ink-100: #eef0f4;
+  --color-ink-200: #dde1e8;
+  --color-ink-300: #c3c9d4;
+  --color-ink-400: #9aa3b5;
+  --color-ink-500: #71798e;
+  --color-ink-600: #545c70;
+  --color-ink-700: #3d4356;
+  --color-ink-800: #262b3a;
+  --color-ink-900: #171a24;
+
+  --color-success-50: #ecfdf5;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+
+  --color-info-50: #eff6ff;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-900 antialiased;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-ink-200 rounded-full;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
