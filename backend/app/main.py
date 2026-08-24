@@ -5,13 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, candidates, dashboard, evaluations, jobs
 from app.core.config import settings
-from app.db.base import Base
-from app.db.session import engine
-from app import models  # noqa: F401  ensures models are registered before create_all
 
 Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
-Base.metadata.create_all(bind=engine)
+# Database schema is managed by Alembic migrations (see backend/alembic).
+# Run `alembic upgrade head` before starting the server.
 
 app = FastAPI(title=settings.APP_NAME)
 
