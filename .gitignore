@@ -1,0 +1,55 @@
+# --- Python / Backend ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Database ---
+*.db
+*.sqlite
+*.sqlite3
+backend/app.db
+backend/*.db
+
+# --- Uploaded resumes / generated files ---
+backend/uploads/
+uploads/
+*.pdf
+*.docx
+!frontend/public/**/*.pdf
+
+# --- Node / Frontend ---
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Alembic ---
+backend/alembic/versions/__pycache__/
