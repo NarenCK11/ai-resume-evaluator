@@ -34,6 +34,21 @@ _YEARS_PATTERNS = [
 _CERT_KEYWORDS = ["certified", "certificate", "certification", "certifications"]
 _PROJECT_KEYWORDS = ["project:", "projects\n", "key project", "personal project"]
 
+# Common English stopwords plus generic job-posting filler, so the JD-vs-resume
+# keyword overlap heuristic below focuses on words that actually carry meaning
+# (technologies, responsibilities, domain terms) rather than "and", "with", etc.
+_STOPWORDS = frozenset("""
+a an the and or but if of to in on for with at by from as is are was were be
+been being this that these those you your we our they their it its he she
+his her will would should could can may might must shall not no do does did
+have has had role team work working opportunity looking seeking candidate
+candidates who what where when strong ability across into out up down over
+under again further then once here there all any both each few more most
+other some such only own same so than too very just about job position company
+""".split())
+
+_WORD_PATTERN = re.compile(r"[a-zA-Z][a-zA-Z\-]{2,}")
+
 
 class MockLLMProvider(LLMProvider):
     def evaluate_resume(self, resume_text: str, job: JobOpening) -> EvaluationEvidence:
@@ -53,7 +68,14 @@ class MockLLMProvider(LLMProvider):
         )
         experience_relevance = min(100.0, round(required_ratio * 60 + preferred_ratio * 20 + 20, 1))
 
-        jd_fit = round((required_ratio * 0.6 + preferred_ratio * 0.4) * 100, 1)
+        # job_description_fit is meant to reflect the JD text vs. resume text
+        # directly (skills are a secondary signal), so it's driven primarily
+        # by keyword overlap between the two, not by skill-list ratios.
+        keyword_score = self._keyword_overlap_score(job, text)
+        if job.required_skills or job.preferred_skills:
+            jd_fit = round(0.7 * keyword_score + 0.3 * ((required_ratio * 0.6 + preferred_ratio * 0.4) * 100), 1)
+        else:
+            jd_fit = round(keyword_score, 1)
 
         cert_hits = sum(1 for kw in _CERT_KEYWORDS if kw in text.lower())
         project_hits = sum(1 for kw in _PROJECT_KEYWORDS if kw in text.lower())
@@ -104,7 +126,11 @@ class MockLLMProvider(LLMProvider):
             candidate_education_level=education_level,
             education_notes=f"Highest education level detected: {education_level.value.replace('_', ' ')}.",
             job_description_fit_score=jd_fit,
-            job_description_fit_notes="Estimated from required/preferred skill coverage (mock provider).",
+            job_description_fit_notes=(
+                "Estimated from keyword overlap between the job description and resume text"
+                + (", blended with skill coverage" if (job.required_skills or job.preferred_skills) else "")
+                + " (mock provider -- set LLM_PROVIDER to a real provider for genuine semantic comparison)."
+            ),
             relevant_projects_certifications=relevant_items,
             projects_certifications_score=projects_score,
             strengths=strengths,
@@ -115,6 +141,20 @@ class MockLLMProvider(LLMProvider):
     @staticmethod
     def _match_skills(skills: list[str], text: str) -> list[str]:
         return [skill for skill in skills if skills_taxonomy.find_match(skill, text)]
+
+    @staticmethod
+    def _keyword_overlap_score(job: JobOpening, resume_text: str) -> float:
+        """Rough proxy for "does this resume actually talk about the same
+        things as this job description" -- what fraction of the JD's
+        meaningful words also appear in the resume."""
+        jd_text = " ".join(filter(None, [job.title, job.description, job.other_details]))
+        jd_words = {w.lower() for w in _WORD_PATTERN.findall(jd_text)} - _STOPWORDS
+        if not jd_words:
+            return 50.0  # no JD text to compare against; neutral score
+
+        resume_words = {w.lower() for w in _WORD_PATTERN.findall(resume_text)}
+        overlap = sum(1 for w in jd_words if w in resume_words)
+        return min(100.0, round(overlap / len(jd_words) * 100, 1))
 
     @staticmethod
     def _estimate_years(text: str) -> float:

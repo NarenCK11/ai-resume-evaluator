@@ -1,9 +1,18 @@
 """Deterministic scoring: turns LLM-produced evidence into a final /100 score.
 
 This is intentionally the ONLY place a final score is computed. LLM providers
-supply structured evidence (matched skills, an experience-relevance rating,
-etc.) but never the final number -- that keeps the score explainable,
-reproducible, and immune to an LLM simply "deciding" a candidate is an 87.
+supply structured evidence (a holistic JD-vs-resume fit rating, an
+experience-relevance rating, matched skills, etc.) but never the final
+number -- that keeps the score explainable, reproducible, and immune to an
+LLM simply "deciding" a candidate is an 87.
+
+The evaluation's primary signal is always `job_description_fit`: the LLM
+reads the full job description and the full resume and rates how well they
+align, the same way a human recruiter would. Required/preferred skill lists
+are an optional, secondary check -- HR isn't required to enumerate them, and
+when a job has none, that weight is folded back into job_description_fit
+instead of being wasted on an always-100 component (which used to silently
+hand every candidate a free ~45 points on skill-less jobs).
 """
 from __future__ import annotations
 
@@ -12,13 +21,16 @@ from app.models.evaluation import Recommendation
 from app.services import skills_taxonomy
 from app.services.llm.schemas import EvaluationEvidence
 
-WEIGHTS = {
-    "required_skills": 0.35,
-    "preferred_skills": 0.10,
+# Base weights when both required and preferred skills are specified on the
+# job. job_description_fit is deliberately the largest single component --
+# it's the direct LLM comparison of the full JD text against the full resume.
+BASE_WEIGHTS = {
+    "job_description_fit": 0.40,
     "experience": 0.25,
+    "required_skills": 0.15,
     "education": 0.10,
-    "job_description_fit": 0.10,
-    "projects_certifications": 0.10,
+    "projects_certifications": 0.05,
+    "preferred_skills": 0.05,
 }
 
 _EDUCATION_ORDER = {
@@ -33,6 +45,21 @@ _EDUCATION_ORDER = {
 
 def _clamp(value: float, low: float = 0, high: float = 100) -> float:
     return max(low, min(high, value))
+
+
+def _effective_weights(job: JobOpening) -> dict[str, float]:
+    """Redistributes a skill component's weight into job_description_fit
+    whenever the job doesn't specify that skill list, so the score is always
+    driven by real signal instead of a constant 100 padded in by an unused
+    component."""
+    weights = dict(BASE_WEIGHTS)
+    if not job.required_skills:
+        weights["job_description_fit"] += weights["required_skills"]
+        weights["required_skills"] = 0.0
+    if not job.preferred_skills:
+        weights["job_description_fit"] += weights["preferred_skills"]
+        weights["preferred_skills"] = 0.0
+    return {key: round(value, 4) for key, value in weights.items()}
 
 
 def reconcile_skills(
@@ -100,24 +127,26 @@ def calculate_score(
     projects_score = _clamp(evidence.projects_certifications_score)
 
     components = {
-        "required_skills": required_score,
-        "preferred_skills": preferred_score,
-        "experience": experience_score,
-        "education": education_score,
         "job_description_fit": jd_fit_score,
+        "experience": experience_score,
+        "required_skills": required_score,
+        "education": education_score,
         "projects_certifications": projects_score,
+        "preferred_skills": preferred_score,
     }
 
-    overall = sum(components[key] * weight for key, weight in WEIGHTS.items())
+    weights = _effective_weights(job)
+
+    overall = sum(components[key] * weight for key, weight in weights.items())
     overall = round(_clamp(overall), 1)
 
     breakdown = {
         key: {
             "score": round(components[key], 1),
-            "weight": WEIGHTS[key],
-            "weighted_contribution": round(components[key] * WEIGHTS[key], 1),
+            "weight": weights[key],
+            "weighted_contribution": round(components[key] * weights[key], 1),
         }
-        for key in WEIGHTS
+        for key in weights
     }
 
     recommendation = _recommendation_for(overall)

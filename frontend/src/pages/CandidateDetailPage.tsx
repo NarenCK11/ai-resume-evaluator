@@ -11,12 +11,12 @@ import { getErrorMessage } from "../api/client";
 import type { CandidateWithEvaluation } from "../types";
 
 const BREAKDOWN_LABELS: Record<string, string> = {
-  required_skills: "Required Skills Match",
-  preferred_skills: "Preferred Skills Match",
+  job_description_fit: "Job Description Fit",
   experience: "Relevant Experience",
+  required_skills: "Required Skills Match",
   education: "Education Fit",
-  job_description_fit: "Overall JD Fit",
   projects_certifications: "Projects & Certifications",
+  preferred_skills: "Preferred Skills Match",
 };
 
 export default function CandidateDetailPage() {
@@ -145,10 +145,18 @@ export default function CandidateDetailPage() {
           <Card className="p-6 lg:col-span-2">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-ink-400">Score Breakdown</h2>
             <div className="space-y-4">
-              {Object.entries(evalu.score_breakdown).map(([key, comp]) => (
-                <ScoreBar key={key} label={BREAKDOWN_LABELS[key] ?? key} score={comp.score} weight={comp.weight} />
-              ))}
+              {Object.entries(evalu.score_breakdown)
+                .filter(([, comp]) => comp.weight > 0)
+                .sort(([, a], [, b]) => b.weight - a.weight)
+                .map(([key, comp]) => (
+                  <ScoreBar key={key} label={BREAKDOWN_LABELS[key] ?? key} score={comp.score} weight={comp.weight} />
+                ))}
             </div>
+            <p className="mt-4 text-xs text-ink-400">
+              Job Description Fit is the primary signal — the AI's holistic read of the full resume
+              against the full job description. Skill-list checks only appear here when the job
+              specifies required/preferred skills.
+            </p>
           </Card>
 
           <Card className="p-6">

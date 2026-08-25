@@ -110,7 +110,10 @@ export function JobFormModal({
           </Field>
         </div>
 
-        <Field label="Job description">
+        <Field
+          label="Job description"
+          hint="This is what the AI reads and compares against every resume — the more detail, the better the evaluation."
+        >
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -119,7 +122,10 @@ export function JobFormModal({
           />
         </Field>
 
-        <Field label="Required skills">
+        <Field
+          label="Required skills (optional)"
+          hint="Optional. The AI evaluates candidates against the job description above either way — add skills here only if you want them checked and shown explicitly."
+        >
           <TagInput
             value={form.required_skills}
             onChange={(v) => setForm({ ...form, required_skills: v })}
@@ -127,7 +133,7 @@ export function JobFormModal({
           />
         </Field>
 
-        <Field label="Preferred skills">
+        <Field label="Preferred skills (optional)">
           <TagInput
             value={form.preferred_skills}
             onChange={(v) => setForm({ ...form, preferred_skills: v })}
@@ -224,10 +230,12 @@ const inputClass =
 function Field({
   label,
   required,
+  hint,
   children,
 }: {
   label: string;
   required?: boolean;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -236,6 +244,7 @@ function Field({
         {label} {required && <span className="text-danger-500">*</span>}
       </label>
       {children}
+      {hint && <p className="mt-1.5 text-xs text-ink-400">{hint}</p>}
     </div>
   );
 }
