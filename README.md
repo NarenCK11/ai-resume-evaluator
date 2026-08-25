@@ -18,8 +18,8 @@ Login → Create Job → Add Candidate → Upload Resume → Parse Resume
   (swap `DATABASE_URL` to point at PostgreSQL later — no code changes needed)
 - **Auth**: JWT (bcrypt-hashed passwords)
 - **Resume parsing**: PDF (`pdfplumber`), DOCX (`python-docx`), TXT
-- **AI evaluation**: pluggable provider interface — a real Anthropic Claude
-  provider, or a dependency-free mock provider that works with no API key
+- **AI evaluation**: pluggable provider interface — Groq (free tier), Anthropic
+  Claude, or a dependency-free mock provider that works with no API key
 
 ## How scoring works
 
@@ -84,15 +84,34 @@ uvicorn app.main:app --reload --port 8000
 Backend runs at `http://localhost:8000` (interactive API docs at
 `http://localhost:8000/docs`).
 
-The default `.env` uses `LLM_PROVIDER=mock`, so the app works immediately
-with **no API key** — the mock provider does real (if simple) regex/keyword
-+ synonym-taxonomy analysis of each resume. To use real AI evaluation via
-Anthropic Claude, edit `backend/.env`:
+#### Choosing an LLM provider
 
-```
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=sk-ant-...
-```
+Set `LLM_PROVIDER` in `backend/.env` to one of:
+
+- **`mock`** — no API key needed. Regex/keyword + synonym-taxonomy heuristics
+  ([`services/llm/mock.py`](backend/app/services/llm/mock.py)). Good for
+  offline development.
+- **`groq`** (recommended if you have a Groq key) — real LLM evaluation via
+  [Groq](https://console.groq.com/keys), which has a generous free tier.
+  ```
+  LLM_PROVIDER=groq
+  GROQ_API_KEY=gsk_...
+  GROQ_MODEL=llama-3.3-70b-versatile
+  ```
+  `llama-3.3-70b-versatile` is available on Groq's free tier and gives the
+  best evaluation quality. If you hit free-tier rate limits, switch
+  `GROQ_MODEL` to `llama-3.1-8b-instant` — smaller/faster with a higher
+  free-tier request allowance, at a small quality cost.
+- **`anthropic`** — real LLM evaluation via Claude (paid).
+  ```
+  LLM_PROVIDER=anthropic
+  ANTHROPIC_API_KEY=sk-ant-...
+  ```
+
+All three implement the same `LLMProvider` interface
+([`services/llm/base.py`](backend/app/services/llm/base.py)) and return the
+same structured evidence shape, so swapping providers never touches scoring,
+API routes, or the frontend.
 
 ### 2. Frontend
 
@@ -118,8 +137,9 @@ with a score and recommendation within a few seconds.
 ## Environment variables
 
 See [`backend/.env.example`](backend/.env.example) for the full list
-(`SECRET_KEY`, `DATABASE_URL`, `LLM_PROVIDER`, `ANTHROPIC_API_KEY`,
-`ANTHROPIC_MODEL`, `UPLOAD_DIR`, `MAX_UPLOAD_MB`, `CORS_ORIGINS`) and
+(`SECRET_KEY`, `DATABASE_URL`, `LLM_PROVIDER`, `GROQ_API_KEY`, `GROQ_MODEL`,
+`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `UPLOAD_DIR`, `MAX_UPLOAD_MB`,
+`CORS_ORIGINS`) and
 [`frontend/.env.example`](frontend/.env.example) for `VITE_API_BASE_URL`
 (only needed if the frontend is deployed separately from the backend).
 Never commit a real `.env` file — both are gitignored.
@@ -135,7 +155,7 @@ backend/
     models/        SQLAlchemy models (User, JobOpening, Candidate, Evaluation)
     schemas/        Pydantic request/response schemas
     services/
-      llm/          LLMProvider interface, Anthropic + mock implementations
+      llm/          LLMProvider interface, Groq + Anthropic + mock implementations
       resume_parser.py    PDF/DOCX/TXT text extraction
       skills_taxonomy.py  synonym-aware skill matching
       scoring.py           deterministic /100 scoring engine
@@ -154,7 +174,12 @@ frontend/
 - Uploaded resumes are stored under `backend/uploads/` (gitignored) and
   never committed.
 - The mock LLM provider is intentionally simple (regex/keyword heuristics)
-  so the app is fully functional offline; swap to `LLM_PROVIDER=anthropic`
-  for genuinely AI-driven evidence extraction.
+  so the app is fully functional offline; swap to `LLM_PROVIDER=groq` or
+  `LLM_PROVIDER=anthropic` for genuinely AI-driven evidence extraction.
+- Groq's free tier applies request/token rate limits per model. If an
+  evaluation fails with a rate-limit error, the candidate is marked
+  "Evaluation failed" with the error message shown on their detail page —
+  click "Re-evaluate" after waiting a moment, or switch `GROQ_MODEL` to
+  `llama-3.1-8b-instant`.
 - Protected/irrelevant personal characteristics (age, gender, etc.) are
   never part of the evaluation prompt or scoring model.

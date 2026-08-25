@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "mock"
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-4-5-20250929"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     UPLOAD_DIR: str = str(BASE_DIR / "uploads")
     MAX_UPLOAD_MB: int = 10

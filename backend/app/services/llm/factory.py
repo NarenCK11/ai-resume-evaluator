@@ -13,6 +13,11 @@ def get_llm_provider() -> LLMProvider:
 
         return AnthropicLLMProvider()
 
+    if provider == "groq":
+        from app.services.llm.groq_provider import GroqLLMProvider
+
+        return GroqLLMProvider()
+
     from app.services.llm.mock import MockLLMProvider
 
     return MockLLMProvider()
