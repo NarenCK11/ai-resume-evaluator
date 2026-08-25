@@ -18,6 +18,11 @@ def get_llm_provider() -> LLMProvider:
 
         return GroqLLMProvider()
 
+    if provider == "xai":
+        from app.services.llm.xai_provider import XAILLMProvider
+
+        return XAILLMProvider()
+
     from app.services.llm.mock import MockLLMProvider
 
     return MockLLMProvider()
